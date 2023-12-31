@@ -29,13 +29,13 @@ void* real_dlsym(void *handle, const char *name) {
 // options
 #define MITM_CA_BUNDLE "MITM_CA_BUNDLE"
 #define MITM_PEER_CERTS "MITM_PEER_CERTS"
-#define MITM_OUTPUT "MITM_OUTPUT"
+#define MITM_OUTPUT_FILE "MITM_OUTPUT_FILE"
 
 #define write_to_output_file(...) { FILE* f; if (f = get_output_file()) fprintf(f, __VA_ARGS__); }
 FILE* get_output_file() {
     static FILE* file = NULL;
     if (!file) {
-        file = fopen(getenv(MITM_OUTPUT), "wb");
+        file = fopen(getenv(MITM_OUTPUT_FILE), "wb");
     }
     return file;
 }

@@ -19,12 +19,15 @@ void* real_dlsym(void *handle, const char *name) {
     return _real_dlsym(handle, name);
 }
 
-#define OVERRIDE(return_type, name, args, body) \
-    extern return_type name args { \
+#define LOOKUP(return_type, name, args, body) \
+    return_type name args { \
         static return_type (*super) args = NULL; \
         if (!super) super = real_dlsym(libssl, #name); \
         body \
     }
+
+#define OVERRIDE(return_type, name, args, body) \
+    extern LOOKUP(return_type, name, args, body)
 
 // options
 #define MITM_CA_BUNDLE "MITM_CA_BUNDLE"
@@ -98,6 +101,14 @@ void print_json_info(const SSL* ssl, const char* fn, int print_end) {
         write_to_output_file("}\n");
     }
 }
+
+LOOKUP(int, SSL_get_servername_type, (const SSL* ssl), { return super(ssl); })
+LOOKUP(const char*, SSL_get_servername, (const SSL* ssl, const int type), { return super(ssl, type); })
+LOOKUP(int, SSL_get_fd, (const SSL *ssl), { return super(ssl); });
+LOOKUP(int, SSL_CTX_load_verify_file, (SSL_CTX *ctx, const char *CAfile), { return super(ctx, CAfile); })
+LOOKUP(SSL_CTX*, SSL_get_SSL_CTX, (const SSL *ssl), { return super(ssl); })
+LOOKUP(STACK_OF(X509)*, TS_CONF_load_certs, (const char *file), { return super(file); })
+LOOKUP(void, ERR_print_errors_fp, (FILE *fp), { return super(fp); })
 
 // symbol exports
 

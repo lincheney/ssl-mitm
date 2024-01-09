@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <dlfcn.h>
 #include <string.h>
+#include <link.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/bio.h>
@@ -13,16 +14,34 @@
 #define DLVSYM_VERSION "GLIBC_2.2.5"
 void* libssl = RTLD_NEXT;
 
+int dl_iterate_callback(struct dl_phdr_info* info, size_t size, void* data) {
+    if (strstr(info->dlpi_name, "/libssl.so")) {
+        libssl = dlopen(info->dlpi_name, RTLD_GLOBAL | RTLD_LAZY);
+        return 1;
+    }
+    return 0;
+
+}
+
 void* real_dlsym(void *handle, const char *name) {
     static void* (*_real_dlsym)(void*, const char*) = NULL;
     if (!_real_dlsym) _real_dlsym = dlvsym(RTLD_NEXT, "dlsym", DLVSYM_VERSION);
     return _real_dlsym(handle, name);
 }
 
+void* libssl_dlsym(const char* name) {
+    void* result = real_dlsym(libssl, name);
+    if (!result && libssl == RTLD_NEXT) {
+        dl_iterate_phdr(dl_iterate_callback, NULL);
+        result = real_dlsym(libssl, name);
+    }
+    return result;
+}
+
 #define LOOKUP(return_type, name, args, body) \
     return_type name args { \
         static return_type (*super) args = NULL; \
-        if (!super) super = real_dlsym(libssl, #name); \
+        if (!super) super = libssl_dlsym(#name); \
         body \
     }
 
